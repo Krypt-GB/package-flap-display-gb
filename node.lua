@@ -8,7 +8,6 @@ node.alias "display"
 
 util.no_globals()
 
--- horizontal centering helper
 local function center_text(text, width)
     local len = utf8.len(text)
     if not len then
@@ -21,6 +20,7 @@ local function center_text(text, width)
     return string.rep(" ", pad) .. text
 end
 
+
 local styles = {
     classic = {
         charset = ' abcdefghijklmnopqrstuvwxyzäöü0123456789@#-.,:?!()',
@@ -29,7 +29,7 @@ local styles = {
         cols = 20,
         width = 2000,
         height = 1950,
-        steps = 5
+        steps = 5,
     },
     spanish1 = {
         charset = ' abcdefghijklmnopqrstuvwxyz0123456789ñáéíóú&@#?!/()\"\':=+-…,.',
@@ -38,7 +38,7 @@ local styles = {
         cols = 34,
         width = 2040,
         height = 1200,
-        steps = 8
+        steps = 8,
     }
 }
 
@@ -49,11 +49,11 @@ local Display = function(display_cols, display_rows, style_name)
     local function make_mapping(cols, rows, tw, th)
         local chars = {}
         for i = 0, #style.charset * style.steps - 1 do
-            local cw = tw / cols
-            local ch = th / rows
-            local x = (i % cols) * cw
+            local cw = tw/cols
+            local ch = th/rows
+            local x =           (i % cols) * cw
             local y = math.floor(i / cols) * ch
-            chars[#chars + 1] = function(x1, y1, x2, y2)
+            chars[#chars+1] = function(x1, y1, x2, y2)
                 t:draw(x1, y1, x2, y2, 1.0, x/tw, y/th, (x+cw)/tw, (y+ch)/th)
             end
         end
@@ -65,23 +65,24 @@ local Display = function(display_cols, display_rows, style_name)
     local row = function(rowsize)
         local function mkzeros(n)
             local out = {}
-            for i = 1, n do out[#out+1] = 0 end
+            for i = 1, n do 
+                out[#out+1] = 0
+            end
             return out
         end
 
         local current = mkzeros(rowsize)
         local target  = mkzeros(rowsize)
-
         local function set(value)
             local len = utf8.len(value)
             if len < rowsize then
-                value = value .. string.rep(" ", rowsize - len)
+                value = value .. string.rep(" ", rowsize-len)
             end
             for i = 1, rowsize do
-                local char = utf8.lower(utf8.sub(value, i, i))
+                local char = utf8.lower(utf8.sub(value,i,i))
                 local pos = utf8.find(style.charset, char, 1, true)
                 if not pos then
-                    pos = 1
+                    pos = 1 -- character not found
                 end
                 target[i] = (pos-1) * style.steps
             end
@@ -107,9 +108,9 @@ local Display = function(display_cols, display_rows, style_name)
         end
 
         return {
-            set = set,
-            tick = tick,
-            draw = draw
+            set = set;
+            tick = tick;
+            draw = draw;
         }
     end
 
@@ -118,27 +119,16 @@ local Display = function(display_cols, display_rows, style_name)
         rows[#rows+1] = row(display_cols)
     end
 
-    -- vertical centering buffer
-    local pending_lines = {}
-
-    local function append(line)
-        pending_lines[#pending_lines + 1] = line
+    local current = 1
+   local function append(line)
+    line = center_text(line, display_cols)
+    rows[current].set(line)
+    current = current + 1
+    if current > #rows then
+        current = 1
     end
+end
 
-    local function flush()
-        local line_count = #pending_lines
-        if line_count == 0 then return end
-
-        local top_padding = math.floor((#rows - line_count) / 2)
-        local current_row = 1 + top_padding
-
-        for _, line in ipairs(pending_lines) do
-            rows[current_row].set(center_text(line, display_cols))
-            current_row = current_row + 1
-        end
-
-        pending_lines = {}
-    end
 
     local function go_up()
         current = 1
@@ -160,14 +150,13 @@ local Display = function(display_cols, display_rows, style_name)
     end
 
     return {
-        append = append,
-        flush = flush,
-        clear = clear,
-        go_up = go_up,
-        draw = draw,
+        append = append;
+        clear = clear;
+        go_up = go_up;
+        draw = draw;
         needs_reinit = function(w, h, s)
             return display_cols ~= w or display_rows ~= h or style_name ~= s
-        end
+        end;
     }
 end
 
@@ -178,7 +167,7 @@ local sessions = {}
 node.event("connect", function(client, path)
     sessions[client] = {
         atomic = path == "atomic",
-        lines = {}
+        lines = {},
     }
 end)
 
@@ -188,7 +177,6 @@ node.event("input", function(line, client)
         session.lines[#session.lines+1] = line
     else
         display.append(line)
-        display.flush()
     end
 end)
 
@@ -199,14 +187,12 @@ node.event("disconnect", function(client)
         for _, line in ipairs(session.lines) do
             display.append(line)
         end
-        display.flush()
     end
 end)
 
 util.data_mapper{
     append = function(line)
         display.append(line)
-        display.flush()
     end
 }
 
@@ -220,12 +206,12 @@ util.json_watch("config.json", function(config)
         display.clear()
     end
 
+    -- set initial output
     for line in (config.text .. "\n"):gmatch("(.-)\n") do
         display.append(line)
     end
-    display.flush()
 end)
-
+    
 function node.render()
     display.draw()
 end
