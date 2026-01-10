@@ -8,7 +8,7 @@ import requests
 from datetime import datetime, timezone
 
 # Your private ICS URL
-CAL_URL = "https://calendar.google.com/calendar/ical/55482e085e715a1d26cc4a40b330928113e9c7f252fa25d9c6b4138e735d94cd%40group.calendar.google.com/private-c15a39ea7a68d0ab6bde810dddd34645/basic.ics"
+CAL_URL = "https://calendar.google.com/calendar/ical/55482e085e715a1d26cc4a40b330928113e9c7f252fa25d9c6b4138e735d94cd%40group.calendar.google.com/public/basic.ics"
 
 MAX_EVENTS = 5
 
