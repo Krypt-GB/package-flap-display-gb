@@ -1,6 +1,9 @@
 {
     "name": "Flap Display",
     "control_ui": "control.html",
+    "permissions": {
+        "network": ""
+    },
     "options": [{
         "title": "Size",
         "ui_width": 4,
