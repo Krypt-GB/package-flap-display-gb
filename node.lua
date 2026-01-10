@@ -1,6 +1,7 @@
 -- vim: set fileencoding=utf8:
 
-gl.setup(1920, 1080)
+-- Set display resolution for this device
+gl.setup(1360, 768)
 local utf8 = require "utf8"
 
 -- give this node the alias 'display'
@@ -49,4 +50,20 @@ local styles = {
 
 ------------------------------------------------------------
 -- Display object
----
+------------------------------------------------------------
+local Display = function(display_cols, display_rows, style_name)
+    local style = styles[style_name]
+    local t = resource.load_image(style.texture)
+
+    -- Use actual device dimensions for drawing
+    local WIDTH, HEIGHT = gl.size()
+
+    --------------------------------------------------------
+    -- Character mapping
+    --------------------------------------------------------
+    local function make_mapping(cols, rows, tw, th)
+        local chars = {}
+        for i = 0, #style.charset * style.steps - 1 do
+            local cw = tw / cols
+            local ch = th / rows
+            loca
