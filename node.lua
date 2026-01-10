@@ -35,7 +35,7 @@ local styles = {
         cols = 20,
         width = 2000,
         height = 1950,
-        steps = 5,
+        steps = 5
     },
     spanish1 = {
         charset = ' abcdefghijklmnopqrstuvwxyz0123456789ñáéíóú&@#?!/()\"\':=+-…,.',
@@ -44,7 +44,7 @@ local styles = {
         cols = 34,
         width = 2040,
         height = 1200,
-        steps = 8,
+        steps = 8
     }
 }
 
@@ -66,4 +66,4 @@ local Display = function(display_cols, display_rows, style_name)
         for i = 0, #style.charset * style.steps - 1 do
             local cw = tw / cols
             local ch = th / rows
-            loca
+            local x = (i % cols) * cw
