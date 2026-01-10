@@ -1,76 +1,42 @@
-#!/usr/bin/python3
 
-# Info-Beamer service to fetch a private Google Calendar ICS
-# and display next 5 events on the flap display.
+#!/usr/bin/python
+
+# Rename this file to `service`, so info-beamer automatically starts it
+# on your device.
 
 import time
-import requests
-from datetime import datetime, timezone
-
-# Your private ICS URL
-CAL_URL = "https://calendar.google.com/calendar/ical/55482e085e715a1d26cc4a40b330928113e9c7f252fa25d9c6b4138e735d94cd%40group.calendar.google.com/public/basic.ics"
-
-MAX_EVENTS = 5
-
 from ibquery import InfoBeamerQuery
 
-def fetch_next_events():
-    try:
-        r = requests.get(CAL_URL)
-        r.raise_for_status()
-        data = r.text.splitlines()
-    except Exception as e:
-        return ["Error fetching calendar: %s" % e]
-
-    events = []
-    current_event = {}
-    for line in data:
-        line = line.strip()
-        if line == "BEGIN:VEVENT":
-            current_event = {}
-        elif line.startswith("SUMMARY:"):
-            current_event["summary"] = line[len("SUMMARY:"):].strip()
-        elif line.startswith("DTSTART"):
-            # parse datetime like 20260115T140000Z
-            dt = line.split(":")[1]
-            try:
-                current_event["start"] = datetime.strptime(dt, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
-            except:
-                current_event["start"] = None
-        elif line == "END:VEVENT":
-            if "summary" in current_event and "start" in current_event:
-                if current_event["start"] > datetime.now(timezone.utc):
-                    events.append(current_event)
-            current_event = {}
-
-    # sort by start date
-    events.sort(key=lambda x: x["start"])
-    # only take first MAX_EVENTS
-    events = events[:MAX_EVENTS]
-
-    # convert to text lines: "HH:MM Event Summary"
-    lines = []
-    for ev in events:
-        local_time = ev["start"].astimezone()
-        lines.append("%02d:%02d %s" % (local_time.hour, local_time.minute, ev["summary"]))
-    if not lines:
-        lines = ["No upcoming events"]
-    return lines
-
 def main():
-    while True:
+    while 1:
         ib = InfoBeamerQuery("127.0.0.1")
+
+        # connect to info-beamer. The node name is 'display' (See node.lua).
+        # There are two modes:
+        #
+        #  * Endlessly adding new lines to the output. Each line you send
+        #    will be added below the current line, wrapping around if it
+        #    reaches to bottom row.
+        #
+        #  * Atomic mode: You connect and send multiple lines. Once you
+        #    disconnect, the display will be cleared and all lines will
+        #    be added at once. This basically replaces the current output
+        #    with all lines sent. The flap display will only update
+        #    characters that changed.
+        #
+        # The mode is determined by how you connect to the info-beamer
+        # process. If you connect and attach to 'display', you're in
+        # endless mode and all lines sent will be immediately added.
+        # If you're connecting and attach to 'display/atomic', you're
+        # in atomic mode.
+
+        # Example for atommic mode: Set 3 lines, the last one being
+        # the current unix timestamp.
         con = ib.node("display/atomic").io(raw=True)
-
-        events_lines = fetch_next_events()
-
-        # write each line to the display
-        for line in events_lines:
-            con.write(line + "\n")
-
+        con.write("Hello\nWorld\n%d\n" % time.time())
         con.close()
-        # update every 60 seconds
-        time.sleep(60)
+
+        time.sleep(1)
 
 if __name__ == "__main__":
     main()
