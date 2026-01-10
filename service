@@ -10,6 +10,9 @@ def main():
     while 1:
         ib = InfoBeamerQuery("127.0.0.1")
 
+        # Get the current date in YYYY-MM-DD format
+        today_date = time.strftime("%Y-%m-%d")
+
         # connect to info-beamer. The node name is 'display' (See node.lua).
         # There are two modes:
         #
@@ -32,7 +35,7 @@ def main():
         # Example for atommic mode: Set 3 lines, the last one being
         # the current unix timestamp.
         con = ib.node("display/atomic").io(raw=True)
-        con.write("Todays Menu\n%d\n" % time.time())
+        con.write("Todays Menu\n%s\n" % today_date)
         con.close()
 
         time.sleep(1)
