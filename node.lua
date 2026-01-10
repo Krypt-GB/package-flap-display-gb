@@ -8,6 +8,19 @@ node.alias "display"
 
 util.no_globals()
 
+local function center_text(text, width)
+    local len = utf8.len(text)
+    if not len then
+        return text
+    end
+    if len >= width then
+        return utf8.sub(text, 1, width)
+    end
+    local pad = math.floor((width - len) / 2)
+    return string.rep(" ", pad) .. text
+end
+
+
 local styles = {
     classic = {
         charset = ' abcdefghijklmnopqrstuvwxyzäöü0123456789@#-.,:?!()',
@@ -107,14 +120,15 @@ local Display = function(display_cols, display_rows, style_name)
     end
 
     local current = 1
-    local function append(line)
-        line = utf8.sub(line, 1, display_cols)
-        rows[current].set(line)
-        current = current + 1
-        if current > #rows then
-            current = 1
-        end
+   local function append(line)
+    line = center_text(line, display_cols)
+    rows[current].set(line)
+    current = current + 1
+    if current > #rows then
+        current = 1
     end
+end
+
 
     local function go_up()
         current = 1
