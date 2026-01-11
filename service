@@ -1,33 +1,61 @@
 #!/usr/bin/python
-
 import time
-import urllib2 
-import textwrap # New import for word wrapping
+import textwrap
+import sys
+
+# Handling Python 2 and 3 compatibility for urllib
+try:
+    import urllib2 as urllib
+except ImportError:
+    import urllib.request as urllib
+
 from ibquery import InfoBeamerQuery
 
-# ... [Keep your ICAL_URL and get_todays_meal() the same] ...
+ICAL_URL = "https://calendar.google.com/calendar/ical/55482e085e715a1d26cc4a40b330928113e9c7f252fa25d9c6b4138e735d94cd%40group.calendar.google.com/public/basic.ics"
+
+def get_todays_meal():
+    try:
+        print("Fetching calendar data...")
+        response = urllib.urlopen(ICAL_URL)
+        data = response.read().decode('utf-8') # Ensure it's a string
+        
+        today_str = time.strftime("%Y%m%d")
+        events = data.split("BEGIN:VEVENT")
+        
+        for event in events:
+            if "DTSTART;VALUE=DATE:" + today_str in event or "DTSTART:" + today_str in event:
+                for line in event.splitlines():
+                    if line.startswith("SUMMARY:"):
+                        meal = line.replace("SUMMARY:", "").strip()
+                        print("Found meal: %s" % meal)
+                        return meal
+        return "NO MEAL PLANNED"
+    except Exception as e:
+        print("Error fetching calendar: %s" % e)
+        return "CALENDAR ERROR"
 
 def main():
-    # Configuration for your specific display
     WIDTH = 25 
+    print("Service started. Connecting to info-beamer...")
     
     while 1:
-        ib = InfoBeamerQuery("127.0.0.1")
-        
-        # 1. Get data
-        meal = get_todays_meal()
-        today_date = time.strftime("%A %d-%m-%Y")
+        try:
+            ib = InfoBeamerQuery("127.0.0.1")
+            
+            meal = get_todays_meal()
+            today_date = time.strftime("%A %d-%m-%Y")
 
-        # 2. Wrap the meal text
-        # 'subsequent_indent' ensures that wrapped lines align with the first line
-        wrapped_meal = textwrap.fill(meal.upper(), width=WIDTH)
+            # Wrap the meal text
+            wrapped_meal = textwrap.fill(meal.upper(), width=WIDTH)
 
-        # 3. Write to display
-        # We start with a newline (\n) to move the date to Row 2
-        # Then two newlines (\n\n) to leave a gap before the meal
-        con = ib.node("display/atomic").io(raw=True)
-        con.write("\n%s\n\n%s\n" % (today_date, wrapped_meal))
-        con.close()
+            # Send to info-beamer
+            con = ib.node("display/atomic").io(raw=True)
+            con.write("\n%s\n\n%s\n" % (today_date, wrapped_meal))
+            con.close()
+            print("Display updated successfully.")
+            
+        except Exception as e:
+            print("Main loop error: %s" % e)
 
         time.sleep(10)
 
