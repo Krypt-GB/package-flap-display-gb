@@ -12,7 +12,6 @@ except ImportError:
 
 from ibquery import InfoBeamerQuery
 
-# PASTE YOUR ICAL LINK HERE
 ICAL_URL = "https://calendar.google.com/calendar/ical/55482e085e715a1d26cc4a40b330928113e9c7f252fa25d9c6b4138e735d94cd%40group.calendar.google.com/public/basic.ics"
 
 def get_todays_calendar_entries():
@@ -21,68 +20,57 @@ def get_todays_calendar_entries():
         response = urllib.urlopen(ICAL_URL)
         data = response.read().decode('utf-8')
         
-        # Today's date string as formatted in iCal (YYYYMMDD)
         today_str = time.strftime("%Y%m%d")
-        
-        # Basic parsing: split into events
         events = data.split("BEGIN:VEVENT")
         found_entries = []
 
         for event in events:
             # Check if this event starts today
             if ("DTSTART;VALUE=DATE:" + today_str in event) or ("DTSTART:" + today_str in event):
-                # Extract the SUMMARY (the event name)
                 for line in event.splitlines():
                     if line.startswith("SUMMARY:"):
                         entry_name = line.replace("SUMMARY:", "").strip()
                         if entry_name:
                             found_entries.append(entry_name.upper())
         
-        if not found_entries:
-            return ["NO ENTRIES PLANNED"]
-        
-        return found_entries
+        return found_entries if found_entries else ["NO ENTRIES PLANNED"]
 
     except Exception as e:
         print("Error fetching calendar: %s" % e)
         return ["CALENDAR ERROR"]
 
 def main():
-    # Your display is 25 characters wide
     WIDTH = 25 
-    print("Service started. Connecting to info-beamer...")
-
     while 1:
         try:
             ib = InfoBeamerQuery("127.0.0.1")
             
-            # 1. Get all events for today as a list
             entries = get_todays_calendar_entries()
             today_date = time.strftime("%A %d-%m-%Y")
 
-            # 2. Prepare the lines for the display
-            # We start with the date
-            display_lines = [today_date, ""] # Empty string creates the spacer line
-
-            # 3. Wrap each entry and add to the list
+            # Create the full list of lines we want to show
+            final_lines = [today_date, ""] # Date + Spacer
+            
             for item in entries:
                 wrapped_item = textwrap.wrap(item, width=WIDTH)
                 for line in wrapped_item:
-                    display_lines.append(line)
+                    final_lines.append(line)
+                # Add a small gap between different calendar entries
+                final_lines.append("") 
 
-            # 4. Connect to flap display in atomic mode
-            # We join all lines with \n to send them at once
+            # JOIN EVERYTHING into one big string before writing
+            # This ensures info-beamer receives the whole block at once
+            full_payload = "\n".join(final_lines)
+
             con = ib.node("display/atomic").io(raw=True)
-            
-            # Start with a leading newline to move the date to Row 2
-            con.write("\n" + "\n".join(display_lines) + "\n")
+            con.write("\n" + full_payload + "\n")
             con.close()
-            print("Display updated with %d entries." % len(entries))
+            
+            print("Successfully sent %d entries" % len(entries))
 
         except Exception as e:
             print("Main loop error: %s" % e)
 
-        # Update every 60 secs (calendar doesn't change that fast)
         time.sleep(60)
 
 if __name__ == "__main__":
