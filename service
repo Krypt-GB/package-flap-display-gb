@@ -5,7 +5,7 @@ import urllib2 # Use 'import urllib.request as urllib2' if on Python 3
 from ibquery import InfoBeamerQuery
 
 # PASTE YOUR ICAL LINK HERE
-ICAL_URL = "https://calendar.google.com/calendar/ical/55482e085e715a1d26cc4a40b330928113e9c7f252fa25d9c6b4138e735d94cd%40group.calendar.google.com/private-c15a39ea7a68d0ab6bde810dddd34645/basic.ics"
+ICAL_URL = "https://calendar.google.com/calendar/ical/55482e085e715a1d26cc4a40b330928113e9c7f252fa25d9c6b4138e735d94cd%40group.calendar.google.com/public/basic.ics"
 
 def get_todays_meal():
     try:
