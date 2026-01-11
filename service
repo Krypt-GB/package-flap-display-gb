@@ -62,7 +62,7 @@ def main():
             ib = InfoBeamerQuery("127.0.0.1")
             
             entries = get_todays_calendar_entries()
-            today_date = time.strftime("%A %d-%m-%Y")
+            today_date = time.strftime("%b %d")
 
             # Build the rows
             all_rows = ["", today_date, ""]
