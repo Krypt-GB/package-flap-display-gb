@@ -65,7 +65,7 @@ def main():
             today_date = time.strftime("%A %b %d")
 
             # Build the rows
-            all_rows = ["", today_date, ""]
+            all_rows = [today_date, ""]
             
             for item in entries:
                 wrapped_item = textwrap.wrap(item, width=WIDTH)
