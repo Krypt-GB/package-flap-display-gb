@@ -1,9 +1,10 @@
 #!/usr/bin/python
+
 import time
 import textwrap
 import sys
 
-# Handling Python 2 and 3 compatibility for urllib
+# Compatibility for Python 2 and 3
 try:
     import urllib2 as urllib
 except ImportError:
@@ -11,53 +12,78 @@ except ImportError:
 
 from ibquery import InfoBeamerQuery
 
+# PASTE YOUR ICAL LINK HERE
 ICAL_URL = "https://calendar.google.com/calendar/ical/55482e085e715a1d26cc4a40b330928113e9c7f252fa25d9c6b4138e735d94cd%40group.calendar.google.com/public/basic.ics"
 
-def get_todays_meal():
+def get_todays_calendar_entries():
     try:
         print("Fetching calendar data...")
         response = urllib.urlopen(ICAL_URL)
-        data = response.read().decode('utf-8') # Ensure it's a string
+        data = response.read().decode('utf-8')
         
+        # Today's date string as formatted in iCal (YYYYMMDD)
         today_str = time.strftime("%Y%m%d")
-        events = data.split("BEGIN:VEVENT")
         
+        # Basic parsing: split into events
+        events = data.split("BEGIN:VEVENT")
+        found_entries = []
+
         for event in events:
-            if "DTSTART;VALUE=DATE:" + today_str in event or "DTSTART:" + today_str in event:
+            # Check if this event starts today
+            if ("DTSTART;VALUE=DATE:" + today_str in event) or ("DTSTART:" + today_str in event):
+                # Extract the SUMMARY (the event name)
                 for line in event.splitlines():
                     if line.startswith("SUMMARY:"):
-                        meal = line.replace("SUMMARY:", "").strip()
-                        print("Found meal: %s" % meal)
-                        return meal
-        return "NO MEAL PLANNED"
+                        entry_name = line.replace("SUMMARY:", "").strip()
+                        if entry_name:
+                            found_entries.append(entry_name.upper())
+        
+        if not found_entries:
+            return ["NO ENTRIES PLANNED"]
+        
+        return found_entries
+
     except Exception as e:
         print("Error fetching calendar: %s" % e)
-        return "CALENDAR ERROR"
+        return ["CALENDAR ERROR"]
 
 def main():
+    # Your display is 25 characters wide
     WIDTH = 25 
     print("Service started. Connecting to info-beamer...")
-    
+
     while 1:
         try:
             ib = InfoBeamerQuery("127.0.0.1")
             
-            meal = get_todays_meal()
+            # 1. Get all events for today as a list
+            entries = get_todays_calendar_entries()
             today_date = time.strftime("%A %d-%m-%Y")
 
-            # Wrap the meal text
-            wrapped_meal = textwrap.fill(meal.upper(), width=WIDTH)
+            # 2. Prepare the lines for the display
+            # We start with the date
+            display_lines = [today_date, ""] # Empty string creates the spacer line
 
-            # Send to info-beamer
+            # 3. Wrap each entry and add to the list
+            for item in entries:
+                wrapped_item = textwrap.wrap(item, width=WIDTH)
+                for line in wrapped_item:
+                    display_lines.append(line)
+
+            # 4. Connect to flap display in atomic mode
+            # We join all lines with \n to send them at once
             con = ib.node("display/atomic").io(raw=True)
-            con.write("\n%s\n\n%s\n" % (today_date, wrapped_meal))
-            con.close()
-            print("Display updated successfully.")
             
+            # Start with a leading newline to move the date to Row 2
+            con.write("\n" + "\n".join(display_lines) + "\n")
+            con.close()
+            print("Display updated with %d entries." % len(entries))
+
         except Exception as e:
             print("Main loop error: %s" % e)
 
-        time.sleep(10)
+        # Update every 60 secs (calendar doesn't change that fast)
+        time.sleep(60)
 
 if __name__ == "__main__":
     main()
