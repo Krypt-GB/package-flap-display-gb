@@ -47,7 +47,7 @@ def main():
         con.close()
 
         # Update every hour to save bandwidth/API hits
-        time.sleep(30)
+        time.sleep(3600)
 
 if __name__ == "__main__":
     main()
