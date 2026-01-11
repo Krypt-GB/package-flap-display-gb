@@ -23,7 +23,7 @@ end
 
 local styles = {
     classic = {
-        charset = ' abcdefghijklmnopqrstuvwxyzäöü0123456789@#-.,:?!()',
+        charset = ' abcdefghijklmnopqrstuvwxyzäöü0123456789@#-.,:?!()/\',
         texture = 'style-classic.png',
         rows = 13,
         cols = 20,
