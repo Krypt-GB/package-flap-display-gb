@@ -24,14 +24,32 @@ def get_todays_calendar_entries():
         found_entries = []
 
         for event in events:
+            # Check if this event starts today
             if ("DTSTART;VALUE=DATE:" + today_str in event) or ("DTSTART:" + today_str in event):
+                summary = ""
+                start_time = ""
+                
                 for line in event.splitlines():
                     if line.startswith("SUMMARY:"):
-                        entry_name = line.replace("SUMMARY:", "").strip()
-                        if entry_name:
-                            found_entries.append(entry_name.upper())
+                        summary = line.replace("SUMMARY:", "").strip().upper()
+                    if line.startswith("DTSTART"):
+                        # Extract the time part for sorting (the part after the 'T')
+                        # e.g., DTSTART:20231027T090000Z
+                        if "T" in line:
+                            start_time = line.split("T")[-1]
+                        else:
+                            # For all-day events, use a placeholder so they sort to the top
+                            start_time = "000000"
+
+                if summary:
+                    # Store as a tuple (time, summary) so we can sort by time
+                    found_entries.append((start_time, summary))
         
-        return found_entries if found_entries else ["NO ENTRIES PLANNED"]
+        # Sort the entries by the start_time (the first item in the tuple)
+        found_entries.sort()
+        
+        # Return just the summaries in order
+        return [entry[1] for entry in found_entries] if found_entries else ["NO ENTRIES PLANNED"]
 
     except Exception as e:
         print("Error fetching calendar: %s" % e)
@@ -46,32 +64,25 @@ def main():
             entries = get_todays_calendar_entries()
             today_date = time.strftime("%A %d-%m-%Y")
 
-            # 1. Build the list of rows
-            # Row 1: Empty (for padding)
-            # Row 2: Date
-            # Row 3: Empty
+            # Build the rows
             all_rows = ["", today_date, ""]
             
             for item in entries:
                 wrapped_item = textwrap.wrap(item, width=WIDTH)
                 for line in wrapped_item:
                     all_rows.append(line)
-                # Add one empty row between entries to distinguish them
+                # Small spacer between items
                 all_rows.append("")
 
-            # 2. Open connection to 'atomic'
+            # Open connection to 'atomic'
             con = ib.node("display/atomic").io(raw=True)
             
-            # 3. Write each line one by one
-            # The Lua script will collect these in session.lines
+            # Write each row
             for row in all_rows:
                 con.write(row + "\n")
             
-            # 4. Closing the connection triggers the 'disconnect' event in Lua
-            # which clears the screen and appends all collected lines.
             con.close()
-            
-            print("Successfully sent %d entries" % len(entries))
+            print("Successfully sent %d entries in order." % len(entries))
 
         except Exception as e:
             print("Main loop error: %s" % e)
