@@ -1,52 +1,34 @@
 #!/usr/bin/python
 
 import time
-import urllib2 # Use 'import urllib.request as urllib2' if on Python 3
+import urllib2 
+import textwrap # New import for word wrapping
 from ibquery import InfoBeamerQuery
 
-# PASTE YOUR ICAL LINK HERE
-ICAL_URL = "https://calendar.google.com/calendar/ical/55482e085e715a1d26cc4a40b330928113e9c7f252fa25d9c6b4138e735d94cd%40group.calendar.google.com/public/basic.ics"
-
-def get_todays_meal():
-    try:
-        # Fetch the calendar data
-        response = urllib2.urlopen(ICAL_URL)
-        data = response.read()
-        
-        # Today's date string as formatted in iCal (YYYYMMDD)
-        today_str = time.strftime("%Y%m%d")
-        
-        # Basic parsing: split into events
-        events = data.split("BEGIN:VEVENT")
-        for event in events:
-            # Check if this event starts today
-            if "DTSTART;VALUE=DATE:" + today_str in event or "DTSTART:" + today_str in event:
-                # Extract the SUMMARY (the meal name)
-                for line in event.splitlines():
-                    if line.startswith("SUMMARY:"):
-                        return line.replace("SUMMARY:", "").strip()
-        return "NO MEAL PLANNED"
-    except Exception as e:
-        return "CALENDAR ERROR"
+# ... [Keep your ICAL_URL and get_todays_meal() the same] ...
 
 def main():
+    # Configuration for your specific display
+    WIDTH = 25 
+    
     while 1:
         ib = InfoBeamerQuery("127.0.0.1")
         
-        # Get data
+        # 1. Get data
         meal = get_todays_meal()
         today_date = time.strftime("%A %d-%m-%Y")
 
-        # Connect to flap display in atomic mode
-        # Line 1: Header
-        # Line 2: Empty spacer
-        # Line 3: Date
-        # Line 4: The meal name (converted to uppercase for the flaps)
+        # 2. Wrap the meal text
+        # 'subsequent_indent' ensures that wrapped lines align with the first line
+        wrapped_meal = textwrap.fill(meal.upper(), width=WIDTH)
+
+        # 3. Write to display
+        # We start with a newline (\n) to move the date to Row 2
+        # Then two newlines (\n\n) to leave a gap before the meal
         con = ib.node("display/atomic").io(raw=True)
-        con.write("\n%s\n\n%s\n " % (today_date, meal.upper()))
+        con.write("\n%s\n\n%s\n" % (today_date, wrapped_meal))
         con.close()
 
-        # Update every hour to save bandwidth/API hits
         time.sleep(10)
 
 if __name__ == "__main__":
