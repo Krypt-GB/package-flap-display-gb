@@ -43,7 +43,7 @@ def main():
         # Line 3: Date
         # Line 4: The meal name (converted to uppercase for the flaps)
         con = ib.node("display/atomic").io(raw=True)
-        con.write( % (today_date, meal.upper())
+        con.write("\n TODAYS MENU\n \n%s\n\n%s\n " % (today_date, meal.upper()))
         con.close()
 
         # Update every hour to save bandwidth/API hits
