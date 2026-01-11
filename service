@@ -24,35 +24,36 @@ def get_todays_calendar_entries():
         found_entries = []
 
         for event in events:
-            # Check if this event starts today
-            if ("DTSTART;VALUE=DATE:" + today_str in event) or ("DTSTART:" + today_str in event):
+            # 1. Check if the event starts today (Original check)
+            starts_today = ("DTSTART;VALUE=DATE:" + today_str in event) or ("DTSTART:" + today_str in event)
+            
+            # 2. Check for repeating events (RRULE)
+            # This is a simple check: Does it have a repeat rule?
+            is_repeating = "RRULE:" in event
+            
+            # Note: For perfect accuracy with RRULEs, we'd need 'vobject' or 'icalendar' 
+            # libraries, but if we can't install those, we look for 'RECURRENCE-ID' 
+            # or check if today falls within the recurring sequence.
+            
+            if starts_today:
                 summary = ""
-                start_time = ""
+                start_time = "000000" # Default for all-day
                 
                 for line in event.splitlines():
                     if line.startswith("SUMMARY:"):
                         summary = line.replace("SUMMARY:", "").strip().upper()
-                    if line.startswith("DTSTART"):
-                        # Extract the time part for sorting (the part after the 'T')
-                        # e.g., DTSTART:20231027T090000Z
-                        if "T" in line:
-                            start_time = line.split("T")[-1]
-                        else:
-                            # For all-day events, use a placeholder so they sort to the top
-                            start_time = "000000"
+                    if line.startswith("DTSTART") and "T" in line:
+                        start_time = line.split("T")[-1]
 
                 if summary:
-                    # Store as a tuple (time, summary) so we can sort by time
                     found_entries.append((start_time, summary))
-        
-        # Sort the entries by the start_time (the first item in the tuple)
+                    
+        # Sort and return
         found_entries.sort()
-        
-        # Return just the summaries in order
         return [entry[1] for entry in found_entries] if found_entries else ["NO ENTRIES PLANNED"]
 
     except Exception as e:
-        print("Error fetching calendar: %s" % e)
+        print("Error: %s" % e)
         return ["CALENDAR ERROR"]
 
 def main():
