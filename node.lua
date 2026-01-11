@@ -20,7 +20,6 @@ local function center_text(text, width)
     return string.rep(" ", pad) .. text
 end
 
-
 local styles = {
     classic = {
         charset = ' abcdefghijklmnopqrstuvwxyzäöü0123456789@#-.,:?!()',
@@ -91,10 +90,7 @@ local Display = function(display_cols, display_rows, style_name)
         local function tick()
             for i = 1, rowsize do
                 if current[i] ~= target[i] then
-                    current[i] = current[i] + 1
-                    if current[i] >= utf8.len(style.charset) * style.steps then
-                        current[i] = 0
-                    end
+                    current[i] = (current[i] + 1) % (utf8.len(style.charset) * style.steps)
                 end
             end
         end
@@ -120,15 +116,14 @@ local Display = function(display_cols, display_rows, style_name)
     end
 
     local current = 1
-   local function append(line)
-    line = center_text(line, display_cols)
-    rows[current].set(line)
-    current = current + 1
-    if current > #rows then
-        current = 1
+    local function append(line)
+        line = center_text(line, display_cols)
+        rows[current].set(line)
+        current = current + 1
+        if current > #rows then
+            current = 1
+        end
     end
-end
-
 
     local function go_up()
         current = 1
@@ -200,18 +195,20 @@ util.json_watch("config.json", function(config)
     local width, height = unpack(config.size)
     local style_name = config.style or "classic"
     local reinit = not display or display.needs_reinit(width, height, style_name)
+    
     if reinit then
         display = Display(width, height, style_name)
     else
         display.clear()
     end
 
-    -- set initial output
-    for line in (config.text .. "\n"):gmatch("(.-)\n") do
-        display.append(line)
-    end
+    -- Set initial placeholder text instead of config.text
+    display.append("") -- Row 1 empty
+    display.append("FETCHING DATA...")
 end)
     
 function node.render()
-    display.draw()
+    if display then
+        display.draw()
+    end
 end
