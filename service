@@ -1,8 +1,8 @@
 #!/usr/bin/python
-
 import time
 import textwrap
 import sys
+from datetime import datetime, timedelta
 
 try:
     import urllib2 as urllib
@@ -15,40 +15,71 @@ ICAL_URL = "https://calendar.google.com/calendar/ical/55482e085e715a1d26cc4a40b3
 
 def get_todays_calendar_entries():
     try:
-        print("Fetching calendar data...")
         response = urllib.urlopen(ICAL_URL)
         data = response.read().decode('utf-8')
         
-        today_str = time.strftime("%Y%m%d")
+        # Get today's date as a datetime object for math
+        now = datetime.now()
+        today_str = now.strftime("%Y%m%d")
+        
         events = data.split("BEGIN:VEVENT")
         found_entries = []
 
         for event in events:
-            # 1. Check if the event starts today (Original check)
-            starts_today = ("DTSTART;VALUE=DATE:" + today_str in event) or ("DTSTART:" + today_str in event)
+            lines = event.splitlines()
+            info = {"summary": "", "start": "", "rrule": ""}
             
-            # 2. Check for repeating events (RRULE)
-            # This is a simple check: Does it have a repeat rule?
-            is_repeating = "RRULE:" in event
-            
-            # Note: For perfect accuracy with RRULEs, we'd need 'vobject' or 'icalendar' 
-            # libraries, but if we can't install those, we look for 'RECURRENCE-ID' 
-            # or check if today falls within the recurring sequence.
-            
-            if starts_today:
-                summary = ""
-                start_time = "000000" # Default for all-day
-                
-                for line in event.splitlines():
-                    if line.startswith("SUMMARY:"):
-                        summary = line.replace("SUMMARY:", "").strip().upper()
-                    if line.startswith("DTSTART") and "T" in line:
-                        start_time = line.split("T")[-1]
+            for line in lines:
+                if line.startswith("SUMMARY:"):
+                    info["summary"] = line.replace("SUMMARY:", "").strip().upper()
+                if line.startswith("DTSTART"):
+                    # Extract date part: YYYYMMDD
+                    val = line.split(":")[-1].split("T")[0]
+                    info["start"] = val
+                if line.startswith("RRULE:"):
+                    info["rrule"] = line
 
-                if summary:
-                    found_entries.append((start_time, summary))
-                    
-        # Sort and return
+            if not info["summary"]:
+                continue
+
+            show_today = False
+
+            # Case 1: Standard one-off event starting today
+            if info["start"] == today_str:
+                show_today = True
+            
+            # Case 2: Recurring event (RRULE)
+            elif info["rrule"]:
+                start_dt = datetime.strptime(info["start"], "%Y%m%d")
+                
+                # Check if the event started in the past and matches today's weekday
+                if start_dt <= now and start_dt.weekday() == now.weekday():
+                    # Check if it's a Weekly/Bi-Weekly rule
+                    if "FREQ=WEEKLY" in info["rrule"]:
+                        interval = 1
+                        if "INTERVAL=" in info["rrule"]:
+                            # Extract the number after INTERVAL=
+                            parts = info["rrule"].split(";")
+                            for p in parts:
+                                if "INTERVAL=" in p:
+                                    interval = int(p.split("=")[1])
+                        
+                        # Math: Weeks since the first event
+                        days_since = (now - start_dt).days
+                        weeks_since = days_since // 7
+                        
+                        # If weeks_since is perfectly divisible by interval, it's today!
+                        if weeks_since % interval == 0:
+                            show_today = True
+
+            if show_today:
+                # Use time for sorting if available
+                start_time = "000000"
+                for line in lines:
+                    if "DTSTART" in line and "T" in line:
+                        start_time = line.split("T")[-1].replace("Z", "")
+                found_entries.append((start_time, info["summary"]))
+        
         found_entries.sort()
         return [entry[1] for entry in found_entries] if found_entries else ["NO ENTRIES PLANNED"]
 
@@ -61,33 +92,22 @@ def main():
     while 1:
         try:
             ib = InfoBeamerQuery("127.0.0.1")
-            
             entries = get_todays_calendar_entries()
-            today_date = time.strftime("%A %b %d")
+            today_date = datetime.now().strftime("%A %b %d")
 
-            # Build the rows
-            all_rows = ["", today_date, ""]
-            
+            all_rows = [today_date, ""]
             for item in entries:
-                wrapped_item = textwrap.wrap(item, width=WIDTH)
-                for line in wrapped_item:
+                wrapped = textwrap.wrap(item, width=WIDTH)
+                for line in wrapped:
                     all_rows.append(line)
-                # Small spacer between items
                 all_rows.append("")
 
-            # Open connection to 'atomic'
             con = ib.node("display/atomic").io(raw=True)
-            
-            # Write each row
             for row in all_rows:
                 con.write(row + "\n")
-            
             con.close()
-            print("Successfully sent %d entries in order." % len(entries))
-
         except Exception as e:
-            print("Main loop error: %s" % e)
-
+            print("Loop error: %s" % e)
         time.sleep(60)
 
 if __name__ == "__main__":
