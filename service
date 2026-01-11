@@ -4,7 +4,6 @@ import time
 import textwrap
 import sys
 
-# Compatibility for Python 2 and 3
 try:
     import urllib2 as urllib
 except ImportError:
@@ -25,7 +24,6 @@ def get_todays_calendar_entries():
         found_entries = []
 
         for event in events:
-            # Check if this event starts today
             if ("DTSTART;VALUE=DATE:" + today_str in event) or ("DTSTART:" + today_str in event):
                 for line in event.splitlines():
                     if line.startswith("SUMMARY:"):
@@ -48,22 +46,29 @@ def main():
             entries = get_todays_calendar_entries()
             today_date = time.strftime("%A %d-%m-%Y")
 
-            # Create the full list of lines we want to show
-            final_lines = [today_date, ""] # Date + Spacer
+            # 1. Build the list of rows
+            # Row 1: Empty (for padding)
+            # Row 2: Date
+            # Row 3: Empty
+            all_rows = ["", today_date, ""]
             
             for item in entries:
                 wrapped_item = textwrap.wrap(item, width=WIDTH)
                 for line in wrapped_item:
-                    final_lines.append(line)
-                # Add a small gap between different calendar entries
-                final_lines.append("") 
+                    all_rows.append(line)
+                # Add one empty row between entries to distinguish them
+                all_rows.append("")
 
-            # JOIN EVERYTHING into one big string before writing
-            # This ensures info-beamer receives the whole block at once
-            full_payload = "\n".join(final_lines)
-
+            # 2. Open connection to 'atomic'
             con = ib.node("display/atomic").io(raw=True)
-            con.write("\n" + full_payload + "\n")
+            
+            # 3. Write each line one by one
+            # The Lua script will collect these in session.lines
+            for row in all_rows:
+                con.write(row + "\n")
+            
+            # 4. Closing the connection triggers the 'disconnect' event in Lua
+            # which clears the screen and appends all collected lines.
             con.close()
             
             print("Successfully sent %d entries" % len(entries))
